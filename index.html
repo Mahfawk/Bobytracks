@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div id="info_in" style="display: flex; flex-direction: column; width: 600px;">
+        Nom du depense<input type="text" id="depense-descri">
+        Montant<input type="number" id="depense-amount">
+        <button type="submit" onclick="recup()">Valider</button>
+    </div>
+    <div id="info_display">
+        
+    </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+    function recup(){
+    champ_descri= document.getElementById("depense-descri")
+    descri= champ_descri.value
+    champ_valeur = document.getElementById("depense-amount")
+    valeur= champ_valeur.value
+    console.log(descri + valeur)
+ }
+</script>
+</html>
