@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Suivi de Dépenses</title>
+
+    <!-- Indique à Safari iOS de cacher la barre d'adresse et les boutons de navigation -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mes Dépenses">
+    <link rel="stylesheet" href="style.css">
+    <!-- Icône de l'application sur l'écran d'accueil (remplacez par l'URL de votre icône si souhaité) -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/5501/5501375.png">
+</head>
+<body>
+    <div class="contain">
+    <div id="info_in" style="display: flex; flex-direction: column; width: 600px; gap: 8px;">
+        
+        <!-- Champ pour entrer l'URL de Google Apps Script -->
+        <label for="sheet-url"><strong>Lien du Google Apps Script Web App :</strong></label>
+        <input type="text" id="sheet-url" placeholder="https://script.google.com/macros/s/.../exec">
+        
+        <hr style="width: 100%; margin: 10px 0;">
+
+        Nom de la dépense <input type="text" id="depense-descri">
+        Montant <input type="number" id="depense-amount" step="0.01">
+        
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+            <button type="button" id="btn-gsheet" onclick="sauvegarderGoogleSheet()" style="flex: 1; padding: 8px;">
+                Sauvegarder (Google Sheets)
+            </button>
+            <button type="button" id="btn-excel" onclick="sauvegarderEtTelechargerExcel()" style="flex: 1; padding: 8px;">
+                Télécharger Excel (.xlsx)
+            </button>
+        </div>
+    </div>
+    </div>
+
+    <!-- Script SheetJS (XLSX) pour le téléchargement local -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        // Historique local pour l'exportation Excel
+        const listeDepenses = [];
+
+        // Au chargement de la page : récupérer l'URL sauvegardée si elle existe
+        window.onload = function() {
+            const urlSauvegardee = localStorage.getItem("google_script_url");
+            if (urlSauvegardee) {
+                document.getElementById("sheet-url").value = urlSauvegardee;
+            }
+        };
+
+        // Fonction utilitaire de vérification et récupération des données du formulaire
+        function ObtenirSaisie() {
+            const champDescri = document.getElementById("depense-descri");
+            const champValeur = document.getElementById("depense-amount");
+
+            const descri = champDescri.value.trim();
+            const valeur = parseFloat(champValeur.value);
+
+            if (descri === "" || isNaN(valeur) || valeur <= 0) {
+                alert("Veuillez remplir une description valide et un montant positif.");
+                return null;
+            }
+
+            return { descri, valeur, champDescri, champValeur };
+        }
+
+        // 1. Bouton "Sauvegarder" (Google Sheets)
+        async function sauvegarderGoogleSheet() {
+            const scriptUrl = document.getElementById("sheet-url").value.trim();
+
+            // Vérification de la présence du lien Google Script
+            if (scriptUrl === "") {
+                alert("Veuillez entrer le lien de votre Web App Google Apps Script avant de valider.");
+                document.getElementById("sheet-url").focus();
+                return;
+            }
+
+            // Sauvegarder l'URL dans le navigateur pour les prochaines utilisations
+            localStorage.setItem("google_script_url", scriptUrl);
+
+            const saisie = ObtenirSaisie();
+            if (!saisie) return;
+
+            const btn = document.getElementById("btn-gsheet");
+            btn.disabled = true;
+            btn.innerText = "Envoi en cours...";
+
+            try {
+                await fetch(scriptUrl, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        description: saisie.descri,
+                        montant: saisie.valeur
+                    })
+                });
+
+                alert("Dépense sauvegardée dans Google Sheets !");
+
+                // Réinitialiser les champs de saisie
+                saisie.champDescri.value = "";
+                saisie.champValeur.value = "";
+                saisie.champDescri.focus();
+
+            } catch (error) {
+                console.error("Erreur d'envoi :", error);
+                alert("Erreur lors de l'enregistrement dans Google Sheets. Vérifiez que l'URL est correcte.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Sauvegarder (Google Sheets)";
+            }
+        }
+
+        // 2. Bouton "Télécharger Excel (.xlsx)"
+        function sauvegarderEtTelechargerExcel() {
+            const saisie = ObtenirSaisie();
+            if (!saisie) return;
+
+            // Ajouter la dépense à la liste locale
+            listeDepenses.push({
+                "Date": new Date().toLocaleDateString("fr-FR"),
+                "Description": saisie.descri,
+                "Montant (€)": saisie.valeur
+            });
+
+            // Génération et téléchargement du fichier Excel
+            const worksheet = XLSX.utils.json_to_sheet(listeDepenses);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Dépenses");
+
+            XLSX.writeFile(workbook, "suivi_depenses.xlsx");
+
+            // Réinitialiser les champs
+            saisie.champDescri.value = "";
+            saisie.champValeur.value = "";
+            saisie.champDescri.focus();
+            
+        }
+    </script>
+</body>
+</html>
